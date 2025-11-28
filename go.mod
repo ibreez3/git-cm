@@ -1,3 +1,3 @@
-module github.com/breeze-go-rust/git-commit-guide
+module github.com/ibreez3/git-cm
 
 go 1.24

@@ -1,5 +1,8 @@
 name: Release
 
+env:
+  BINARY_NAME: git-cm
+
 # 触发条件：当创建新的 Git Tag 时触发
 on:
   push:
@@ -30,6 +33,14 @@ jobs:
             arch: arm64
             goos: darwin
             goarch: arm64
+          - os: windows
+            arch: amd64
+            goos: windows
+            goarch: amd64
+          - os: windows
+            arch: arm64
+            goos: windows
+            goarch: arm64
 
     steps:
       - name: Checkout code
@@ -38,26 +49,33 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'  # 使用项目对应的 Go 版本
+          go-version: '1.24'  # 使用项目对应的 Go 版本
 
       - name: Extract version from tag
         id: extract_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build binary
         run: |
-          # 定义输出文件名
-          BINARY_NAME="git-cm-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}"
-          # 交叉编译
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-X main.version=${{ env.VERSION }}" -o $BINARY_NAME
-          # 压缩二进制文件
-          zip ${BINARY_NAME}.zip $BINARY_NAME
+          VERSION="${VERSION}"
+          OS="${{ matrix.os }}"
+          ARCH="${{ matrix.arch }}"
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+          OUTPUT="${BINARY_NAME}-${VERSION}-${OS}-${ARCH}"
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags "-X main.version=${VERSION}" -o "${OUTPUT}${EXT}"
+          zip "${OUTPUT}.zip" "${OUTPUT}${EXT}"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: git-cm-${{ matrix.os }}-${{ matrix.arch }}
-          path: git-cm-*.zip
+          path: ${{ env.BINARY_NAME }}-${{ steps.extract_version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.zip
 
   release:
     name: Create GitHub Release
@@ -74,7 +92,10 @@ jobs:
 
       - name: Extract version from tag
         id: extract_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
