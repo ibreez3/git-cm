@@ -27,6 +27,8 @@ $(PLATFORMS):
 # 本地构建（当前平台）
 local:
 	go build -o $(BINARY_NAME) -ldflags "-X main.version=$(VERSION)" .
+install: local
+	cp $(BINARY_NAME) $(GOPATH)/bin/$(BINARY_NAME)
 
 # 清理构建产物
 clean:
